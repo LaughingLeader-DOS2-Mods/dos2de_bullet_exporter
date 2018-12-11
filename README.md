@@ -47,3 +47,6 @@ The Divinity Engine 2\DefEd\LSPakUtilityBulletToPhysX.exe
 * As of version 3.6.30.672 (12/11/2018), the "Add Physics Resource" file browser defaults to .bullet types only. You can work around this by manually entering your file names into the open dialog, like so:
 
 [![Importing Bin Files](https://i.imgur.com/PCnqEOVl.jpg)](https://i.imgur.com/PCnqEOV.png)
+
+## Credits
+This is a modified version of V0idExp's original bullet exporter addon, located here: [https://github.com/V0idExp/blender-bullet-export](https://github.com/V0idExp/blender-bullet-export)
