@@ -10,6 +10,7 @@ This is a simple addon for Blender that allows you to export bullet/bin files fo
 
 ## Installing
 
+### Manual  
 * Navigate to [dos2_bullet_exporter.py](https://github.com/LaughingLeader-DOS2-Mods/DOS2-Bullet-Exporter/blob/master/dos2_bullet_exporter.py).
 * Right click "Raw", then select "Save Link As...".
 * Save the addon somewhere where you can find it again.
