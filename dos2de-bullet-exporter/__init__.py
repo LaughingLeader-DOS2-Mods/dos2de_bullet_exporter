@@ -56,16 +56,6 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
         options={"HIDDEN"}
     )
     
-    @contextmanager
-    def text_snippet(self, context):
-        self.snip = context.blend_data.texts.new('phys_export_snip')
-        self.snip.write(
-            'import PhysicsConstraints\n'
-            'PhysicsConstraints.exportBulletFile("{}")'.format(self.filepath))
-        yield
-        context.blend_data.texts.remove(self.snip)
-        self.snip = None
-        
     def update_filepath(self, context):
         if self.filepath != "" and self.last_filepath == "":
             self.last_filepath = self.filepath
@@ -84,21 +74,18 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
             elif self.auto_name == "DISABLED" and self.last_filepath != "":
                 self.auto_filepath = bpy.path.ensure_ext(self.last_filepath, self.filename_ext)
                 self.update_path = True
-            if self.update_path:
-                print("[DOS2DE-Bullet] Filepath set to " + str(self.auto_filepath))
-        else:
-            print("[DOS2DE-Bullet] self.filepath not set.")
         return
-        
+
+#   ==== Default Properties Start ====
     yup_enabled = BoolProperty(
         name="Y-Up Rotation",
-        description="Rotates the object for a y-up world.",
+        description="Rotates the object for a Y-up world",
         default=True
         )
 
     auto_name = EnumProperty(
         name="Name",
-        description="Auto-generate a filename based on a property name.",
+        description="Auto-generate a filename based on a property name",
         items=(("DISABLED", "Disabled", ""),
                ("LAYER", "Layer Name", ""),
                ("OBJECT", "Active Object Name", "")),
@@ -108,16 +95,18 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
         
     binconversion_enabled = BoolProperty(
         name="Convert to Bin",
-        description="Converts the resulting .bullet file to .bin.",
+        description="Converts the resulting .bullet file to .bin",
         default=True
         )  
         
     binutil_path = StringProperty(
-        name="Larian Bin Utility",
-        description="Path to the exe that converts bullet files to bin.",
+        name="LSPakUtilityBulletToPhysX",
+        description="Path to the exe that converts bullet files to bin",
         default="C:\The Divinity Engine 2\DefEd\LSPakUtilityBulletToPhysX.exe",
+        subtype='FILE_PATH'
         )
-        
+#   ==== Default Properties End ====        
+
     update_path = BoolProperty(
         default=False,
         options={"HIDDEN"},
@@ -139,7 +128,17 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
         default="",
         options={"HIDDEN"},
         )
-    
+
+    @contextmanager
+    def text_snippet(self, context):
+        self.snip = context.blend_data.texts.new('phys_export_snip')
+        self.snip.write(
+            'import PhysicsConstraints\n'
+            'PhysicsConstraints.exportBulletFile("{}")'.format(self.filepath))
+        yield
+        context.blend_data.texts.remove(self.snip)
+        self.snip = None
+        
     @property
     def check_extension(self):
         return True
@@ -165,18 +164,18 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
         
     def execute(self, context):
         if not self.filepath:
-            raise Exception("filepath not set")
+            raise Exception("[DOS2DE-Bullet] Filepath not set.")
         prev_engine = context.scene.render.engine or 'BLENDER_RENDER'
         context.scene.render.engine = 'BLENDER_GAME'
         if not context.selected_objects:
-            print("[DOS2DE-Bullet] No selected objects! Cancelling.")
+            raise Exception("[DOS2DE-Bullet] No selected objects! Cancelling.")
             return {'CANCELLED'}
 
         last_mode = bpy.context.object.mode
         obj = context.selected_objects[0]
         
         bpy.ops.object.mode_set(mode='OBJECT')
-        print("[DOS2DE-Bullet] Selected objects: " + obj.name)
+        #print("[DOS2DE-Bullet] Selected objects: " + obj.name)
         
         if self.yup_enabled:
             euler = Euler(map(radians, (-90, 180, 0)), 'XYZ')
@@ -206,7 +205,6 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
             pass_ctrl.link(actuator=quit_act)
 
             # run game engine!
-            print("[DOS2DE-Bullet] Starting BGE.")
             bpy.ops.view3d.game_start()
 
             # cleanup
@@ -227,12 +225,14 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
             bpy.ops.object.mode_set(last_mode)
         
         if self.binconversion_enabled:
-            if self.binutil_path is not None and self.binutil_path != "":
+            if self.binutil_path is not None and self.binutil_path != "" and os.path.isfile(self.binutil_path):
                 subprocess.run([self.binutil_path,'-i',self.filepath])
                 #subprocess.call([self.binutil_path,'-i',self.filepath])
                 #command = "\"{}\" -i \"{}\"".format(self.binutil_path, self.filepath)
                 #os.system("start /wait cmd /c {} pause".format(self.command))
                 os.remove(self.filepath)
+            else:
+                raise Exception("[DOS2DE-Bullet] Bin conversion program not found.")
         return {"FINISHED"}
 
 
