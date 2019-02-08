@@ -39,7 +39,7 @@ def default_filename(context):
 
 
 class BulletDataExporter(bpy.types.Operator, ExportHelper):
-    """Export physics data"""
+    """Export physics data with Divinity-specific options (.bullet, .bin)"""
     bl_idname = "dos2.export_bullet"
     bl_label = "Export Bullet"
     bl_options = {"PRESET", "REGISTER", "UNDO"}
