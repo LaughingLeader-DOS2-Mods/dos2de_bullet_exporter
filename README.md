@@ -41,6 +41,10 @@ The other bound types may cause crashes inside the Divinity Editor.
 ```
 The Divinity Engine 2\DefEd\LSPakUtilityBulletToPhysX.exe
 ```
+Example:
+```py
+default="C:\The Divinity Engine 2\DefEd\LSPakUtilityBulletToPhysX.exe",
+```
 * If you updated the script while Blender is running/open, press F8 to reload scripts.
 * Now when "Convert to Bin" is enabled, the .bullet file will be created, sent to LSPakUtilityBulletToPhysX to convert it to .bin, and finally deleted.
 
