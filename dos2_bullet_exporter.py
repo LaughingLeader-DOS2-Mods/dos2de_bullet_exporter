@@ -26,7 +26,6 @@ bl_info = {
     "category": "Import-Export"
 }
 
-
 def default_filename(context):
     current_path = context.blend_data.filepath
     if current_path:
@@ -37,6 +36,11 @@ def default_filename(context):
     else:
         return os.path.join(os.path.expanduser("~"), '.bullet')
 
+def error_missing_layer_names(self, context):
+    self.layout.label("Layer Names are not enabled. Please enable the Layer Management or Leader Helpers addon for layer names.")
+
+def error_no_active_object(self, context):
+    self.layout.label("No active object set.")
 
 class BulletDataExporter(bpy.types.Operator, ExportHelper):
     """Export physics data with Divinity-specific options (.bullet, .bin)"""
@@ -62,15 +66,22 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
         
         if self.filepath != "":
             if self.auto_name == "LAYER":
-                for i in range(20):
-                    if (bpy.data.scenes["Scene"].layers[i]):
-                        self.auto_filepath = bpy.path.ensure_ext("{}\\{}".format(self.directory, 
-                                                bpy.data.scenes["Scene"].namedlayers.layers[i].name), 
-                                            self.filename_ext)
-                        self.update_path = True
+                if hasattr(bpy.data.scenes["Scene"], "namedlayers"):
+                    for i in range(20):
+                        if (bpy.data.scenes["Scene"].layers[i]):
+                                layername = bpy.data.scenes["Scene"].namedlayers.layers[i].name
+                                if layername is not None and layername != "":
+                                    self.auto_filepath = bpy.path.ensure_ext("{}\\{}".format(self.directory, layername), self.filename_ext)
+                                    self.update_path = True
+                                    break
+                else:
+                    bpy.context.window_manager.popup_menu(error_missing_layer_names, title="Warning", icon='ERROR')
             elif self.auto_name == "OBJECT":
-                self.auto_filepath = bpy.path.ensure_ext("{}\\{}".format(self.directory, bpy.context.scene.objects.active.name), self.filename_ext)
-                self.update_path = True
+                if getattr(bpy.context.scene.objects, "active", None) is not None and hasattr(bpy.context.scene.objects.active, "name"):
+                    self.auto_filepath = bpy.path.ensure_ext("{}\\{}".format(self.directory, bpy.context.scene.objects.active.name), self.filename_ext)
+                    self.update_path = True
+                else:
+                    bpy.context.window_manager.popup_menu(error_no_active_object, title="Warning", icon='ERROR')
             elif self.auto_name == "DISABLED" and self.last_filepath != "":
                 self.auto_filepath = bpy.path.ensure_ext(self.last_filepath, self.filename_ext)
                 self.update_path = True
@@ -159,6 +170,12 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
     def invoke(self, context, event):
         if self.filepath != "" and self.last_filepath == "":
             self.last_filepath = self.filepath
+        if self.auto_name == "LAYER" and hasattr(bpy.data.scenes["Scene"], "namedlayers") == False:
+            #bpy.context.window_manager.popup_menu(error_missing_layer_names, title="Warning", icon='ERROR')
+            self.auto_name = "DISABLED"
+        if self.binconversion_enabled:
+            if self.binutil_path is None or self.binutil_path == "" or os.path.isfile(self.binutil_path) == False:
+                self.binconversion_enabled = False
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
         
