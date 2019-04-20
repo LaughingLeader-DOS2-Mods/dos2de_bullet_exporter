@@ -34,13 +34,14 @@ Once you have the addon installed/activated, select the object you want to expor
 
 The other bound types may cause crashes inside the Divinity Editor.
 
-### Bin Conversion Setup  
+### Bin Conversion Setup (Optional)
 * Open dos2_bullet_exporter.py in a text editor.
 * Search for `Default Properties Start`. These properties are the default, visible properties on the left when exporting.
-* Find the property for `binutil_path`, and change the `default` value to the location of Larian's bin utility program. This program is located in the Definitive Edition editor folder:
+* Find the property for `binutil_path`, and change the `default` value with the quotes to the location of Larian's bin utility program. This program is located in the Definitive Edition editor folder:
 ```
 The Divinity Engine 2\DefEd\LSPakUtilityBulletToPhysX.exe
 ```
+* If you updated the script while Blender is running/open, press F8 to reload scripts.
 * Now when "Convert to Bin" is enabled, the .bullet file will be created, sent to LSPakUtilityBulletToPhysX to convert it to .bin, and finally deleted.
 
 ### Note: Importing Bin Files into The Divinity Engine 2
