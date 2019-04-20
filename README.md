@@ -1,6 +1,6 @@
-# Blender Bullet Exporter for Divinity: Original Sin 2 
+# Divinity Bullet Exporter for Blender 2.79
 
-This is a simple addon for Blender that allows you to export bullet/bin files for Divinity: Original Sin 2, for both Classic and the Definitive Edition.
+This is a simple addon for Blender 2.79 that allows you to export bullet/bin files for Divinity: Original Sin 2, for both Classic and the Definitive Edition.
 
 ## Features:  
 * Export Blender Game physics to .bullet, and optionally convert that .bullet to .bin, for the Definitive Edition.
