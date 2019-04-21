@@ -247,7 +247,10 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
                 #subprocess.call([self.binutil_path,'-i',self.filepath])
                 #command = "\"{}\" -i \"{}\"".format(self.binutil_path, self.filepath)
                 #os.system("start /wait cmd /c {} pause".format(self.command))
-                os.remove(self.filepath)
+                if os.path.isfile(self.filepath):
+                    os.remove(self.filepath)
+                else:
+                    raise Warning("[DOS2DE-Bullet] Bullet file not found. Try exporting to a folder not in your User directory.")
             else:
                 raise Exception("[DOS2DE-Bullet] Bin conversion program not found.")
         return {"FINISHED"}
