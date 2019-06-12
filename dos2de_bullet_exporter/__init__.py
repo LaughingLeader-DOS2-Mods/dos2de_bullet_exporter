@@ -1,28 +1,22 @@
-from contextlib import contextmanager
 import bpy
-import os.path
-import subprocess
-
-from math import radians
-from mathutils import Euler, Matrix
 
 from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty
 from bpy.types import Operator, OperatorFileListElement, AddonPreferences
 
-from bpy_extras.io_utils import ExportHelper
+from . import physics_exporter
 
 bl_info = {
-    "name": "Bullet Exporter - Divinity: Original Sin 2",
+    "name": "Divinity Physics Exporter",
     "author": "LaughingLeader",
     "blender": (2, 7, 9),
     "api": -1,
     "location": "File > Import-Export",
-    "description": ("Export Bullet Files"),
+    "description": ("Export physics files for Divinity: Original Sin 2 - Definitive Edition."),
     "warning": "",
     "wiki_url": (""),
     "tracker_url": "",
     "support": "COMMUNITY",
-    "category": "Export"
+    "category": "Import-Export"
 }
 
 def enum_members_from_type(rna_type, prop_str):
@@ -32,8 +26,8 @@ def enum_members_from_type(rna_type, prop_str):
 physics_type_items = enum_members_from_type(bpy.types.GameObjectSettings, "physics_type")
 collision_bounds_type_items = enum_members_from_type(bpy.types.GameObjectSettings, "collision_bounds_type")
 
-class DivinityBulletExporterAddonPreferences(AddonPreferences):
-    bl_idname = "dos2_bullet_exporter"
+class DivinityPhysicsExporterAddonPreferences(AddonPreferences):
+    bl_idname = "dos2de_physics_exporter"
 
     binutil_path = StringProperty(
         name="LSPakUtilityBulletToPhysX",
@@ -74,25 +68,20 @@ class DivinityBulletExporterAddonPreferences(AddonPreferences):
         box.prop(self, "default_physics_type")
         box.prop(self, "default_collision_bounds_type")
 
-def menu_func(self, context):
-    self.layout.operator(BulletDataExporter.bl_idname, text="Divinity Physics (.bullet, .bin)")
-
 def register():
     bpy.utils.register_module(__name__)
-    #bpy.utils.register_class(BulletDataExporter)
-    bpy.types.INFO_MT_file_export.append(menu_func)
+    physics_exporter.register()
 
     #wm = bpy.context.window_manager
     #m = wm.keyconfigs.addon.keymaps.new('Window', space_type='EMPTY', region_type='WINDOW', modal=False)
     #kmi = km.keymap_items.new(BulletDataExporter.bl_idname, 'E', 'PRESS', ctrl=True, shift=True, alt=True)
     #print(__name__)
     #kmi.properties.name = ExportDAE.bl_idname
-    addon_keymaps.append((km, kmi))
+    #addon_keymaps.append((km, kmi))
 
 def unregister():
     bpy.utils.unregister_module(__name__)
-    #bpy.utils.unregister_class(BulletDataExporter)
-    bpy.types.INFO_MT_file_export.remove(menu_func)
+    physics_exporter.unregister()
 
 if __name__ == "__main__":
     register()

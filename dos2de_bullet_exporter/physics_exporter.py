@@ -1,15 +1,14 @@
-from bpy.props import StringProperty, BoolProperty
-from bpy.types import Operator
+from contextlib import contextmanager
+import os.path
+import subprocess
 
-def default_filename(context):
-    current_path = context.blend_data.filepath
-    if current_path:
-        return os.path.join(
-            os.path.dirname(current_path),
-            '{}.bullet'.format(
-                os.path.splitext(os.path.basename(current_path))[0]))
-    else:
-        return os.path.join(os.path.expanduser("~"), '.bullet')
+from math import radians
+from mathutils import Euler, Matrix
+
+import bpy
+from bpy.props import StringProperty, BoolProperty, EnumProperty
+from bpy.types import Operator
+from bpy_extras.io_utils import ExportHelper
 
 def error_missing_layer_names(self, context):
     self.layout.label("Layer Names are not enabled. Please enable the Layer Management or Leader Helpers addon for layer names.")
@@ -17,10 +16,10 @@ def error_missing_layer_names(self, context):
 def error_no_active_object(self, context):
     self.layout.label("No active object set.")
 
-class BulletDataExporter(bpy.types.Operator, ExportHelper):
+class PhysicsExporter(bpy.types.Operator, ExportHelper):
     """Export physics data with Divinity-specific options (.bullet, .bin)"""
-    bl_idname = "dos2.op_export_bullet"
-    bl_label = "Export Bullet"
+    bl_idname = "export_scene.dos2de_physics"
+    bl_label = "Export Divinity Physics"
     bl_options = {"PRESET", "REGISTER", "UNDO"}
 
     filename_ext = ".bullet"
@@ -315,7 +314,7 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
                 new_armatures.append(armature)
 
         user_preferences = context.user_preferences
-        addon_prefs = user_preferences.addons["dos2_bullet_exporter"].preferences
+        addon_prefs = user_preferences.addons["dos2de_bullet_exporter"].preferences
 
         for obj in export_objects:
             phys_type = bpy.data.objects[obj.name].game.physics_type
@@ -369,3 +368,12 @@ class BulletDataExporter(bpy.types.Operator, ExportHelper):
                 bpy.ops.object.mode_set (mode=last_mode)
 
         return {"FINISHED"}
+
+def menu_func(self, context):
+    self.layout.operator(PhysicsExporter.bl_idname, text="Divinity Physics (.bullet, .bin)")
+
+def register():
+    bpy.types.INFO_MT_file_export.append(menu_func)
+
+def unregister():
+    bpy.types.INFO_MT_file_export.remove(menu_func)
