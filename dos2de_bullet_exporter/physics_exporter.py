@@ -204,7 +204,9 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
 
         export_path = self.create_filepath(context, obj)
 
-        print("[DOS2DE-Bullet] Exporting bullet file to {}".format(export_path))
+        print("[DOS2DE-Physics] Exporting bullet file to {}".format(export_path))
+
+        bpy.context.scene.objects.active = obj
 
         with self.text_snippet(context, export_path):
             # create a trigger
@@ -233,12 +235,12 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
             bpy.ops.view3d.game_start()
 
             # cleanup
-            print("[DOS2DE-Bullet] Cleaning up.")
+            print("[DOS2DE-Physics] Cleaning up.")
             bpy.ops.logic.controller_remove(controller=export_ctrl.name, object=obj.name)
             bpy.ops.logic.controller_remove(controller=pass_ctrl.name, object=obj.name)
             bpy.ops.logic.actuator_remove(actuator=quit_act.name, object=obj.name)
             bpy.ops.logic.sensor_remove(sensor=trigger.name, object=obj.name)
-            print("[DOS2DE-Bullet] Done.")
+            print("[DOS2DE-Physics] Done.")
 
             if self.binconversion_enabled:
                 if self.binutil_path is not None and self.binutil_path != "" and os.path.isfile(self.binutil_path):
@@ -246,20 +248,64 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                         subprocess.run([self.binutil_path,'-i', export_path])
                         os.remove(export_path)
                     else:
-                        raise Warning("[DOS2DE-Bullet] Bullet file not found. Try exporting to a folder not in your User directory.")
+                        raise Warning("[DOS2DE-Physics] Bullet file not found. Try exporting to a folder not in your User directory.")
                 else:
-                    raise Exception("[DOS2DE-Bullet] Bin conversion program not found.")
+                    raise Exception("[DOS2DE-Physics] Bin conversion program not found.")
+    def finish(self, context, **args):
+        export_objects = args["export_objects"]
+        new_armatures = args["new_armatures"]
+        prev_engine = args["prev_engine"]
+        physenabled_objects = args["physenabled_objects"]
+        selected_objects = args["selected_objects"]
+        active_object = args["active_object"]
+        last_mode = args["last_mode"]
+
+        for obj in export_objects:
+            if obj is not None:
+                data = bpy.data.objects[obj.name]
+                bpy.data.objects.remove(data, do_unlink=True)
+
+        for obj in new_armatures:
+            if obj is not None:
+                data = bpy.data.objects[obj.name]
+                bpy.data.objects.remove(data, do_unlink=True)
+
+        export_objects.clear()
+        new_armatures.clear()
+
+        context.scene.render.engine = prev_engine
+
+        for obj in context.scene.objects:
+            obj.select = False
+
+        for obj in physenabled_objects:
+            bpy.data.objects[obj.name].game.use_collision_bounds = True
+
+        for obj in selected_objects:
+            obj.select = True
+        
+        if active_object is not None:
+            bpy.context.scene.objects.active = active_object
+        
+        # Return to previous mode
+        if last_mode is not None and active_object is not None:
+            if active_object.type != "ARMATURE" and last_mode == "POSE":
+                bpy.ops.object.mode_set(mode="OBJECT")
+            else:
+                bpy.ops.object.mode_set (mode=last_mode)
 
     def execute(self, context):
         if not self.filepath:
-            raise Exception("[DOS2DE-Bullet] Filepath not set.")
+            raise Exception("[DOS2DE-Physics] Filepath not set.")
         prev_engine = context.scene.render.engine or 'BLENDER_RENDER'
         context.scene.render.engine = 'BLENDER_GAME'
 
         export_objects = []
         new_armatures = []
+        armature_copies = {}
 
         selected_objects = []
+        physenabled_objects = []
 
         last_mode = getattr(bpy.context.object, "mode", None)
         
@@ -273,53 +319,96 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                 obj.select = False
 
             if obj.type == "MESH" and self.can_export_object(context, obj):
+                print("[DOS2DE-Physics] Copying object '{}'.".format(obj.name))
+
                 copy = obj.copy()
                 copy.data = obj.data.copy()
                 context.scene.objects.link(copy)
                 export_objects.append(copy)
+
+                if obj.parent is not None:
+                    if obj.parent.name in armature_copies:
+                        print("[DOS2DE-Physics] Set copy '{}' parent to {}.".format(obj.name, obj.parent.name))
+                        copy.parent = armature_copies[obj.parent.name]
+                    elif obj.parent.type == "ARMATURE":
+                        print("[DOS2DE-Physics] Copying object parent '{}' - {}.".format(obj.name, obj.parent.name))
+                        parent_copy = obj.parent.copy()
+                        parent_copy.data = obj.parent.data.copy()
+                        context.scene.objects.link(parent_copy)
+                        new_armatures.append(parent_copy)
+                        copy.parent = parent_copy
+                        armature_copies[obj.name] = parent_copy
         
+            #Using copies, hide the originals
+            if bpy.data.objects[obj.name].game.use_collision_bounds is True:
+                physenabled_objects.append(obj)
+                bpy.data.objects[obj.name].game.use_collision_bounds = False
+
         if len(export_objects) <= 0:
-            raise Exception("[DOS2DE-Bullet] No object to export! Cancelling.")
+            print("[DOS2DE-Physics] No object to export! Cancelling.")
+            self.finish(context, export_objects=export_objects, new_armatures=new_armatures, 
+                    physenabled_objects=physenabled_objects, selected_objects=selected_objects,
+                        active_object=active_object, prev_engine=prev_engine, last_mode=last_mode)
             return {'CANCELLED'}
 
         bpy.context.scene.objects.active = None
-
         bpy.ops.object.select_all(action='DESELECT')
-        #bpy.ops.object.mode_set(mode='OBJECT')
+
+        from . import get_preferences
+
+        addon_prefs = get_preferences(context)
+
+        if addon_prefs.export_combine_visible and len(export_objects) > 1:
+            for obj in export_objects:
+                obj.select = True
+
+            bpy.context.scene.objects.active = export_objects[0]
+            bpy.ops.object.join()
+
+            export_objects.clear()
+            export_objects.append(bpy.context.scene.objects.active)
+            bpy.context.scene.objects.active.select = True
+
+        if bpy.context.scene.objects.active is not None:
+            bpy.ops.object.select_all(action='DESELECT')
+
+        arm_num = 1
 
         for obj in export_objects:
             if self.yup_enabled:
-                euler = Euler(map(radians, (-90, 180, 0)), 'XYZ')
-                copy.rotation_euler = euler
+                print("[DOS2DE-Physics] Rotating object '{}' to y-up.".format(obj.name))
+                obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(-90), 3, 'X')).to_euler()
 
-            if copy.parent is None or copy.parent.type != "ARMATURE":
-                bpy.context.scene.objects.active = None
+            if obj.parent is None or obj.parent.type != "ARMATURE":
 
-                bpy.ops.object.armature_add()
-                armature = bpy.context.scene.objects.active
-                copy.parent = armature
+                #bpy.ops.object.armature_add()
+                #armature = bpy.context.scene.objects.active
+                data_name = 'armbexporttempdata-{}'.format(arm_num)
+                arm_name = 'armbexporttemp-{}'.format(arm_num)
+                arm_num += 1
+
+                armature_data = bpy.data.armatures.new(data_name)
+                armature = bpy.data.objects.new(arm_name, armature_data)
+                armature.hide_render = False
+                context.scene.objects.link(armature)
+
+                obj.parent = armature
 
                 for i in range(20):
                     armature.layers[i] = obj.layers[i]
-                
-                bpy.context.scene.objects.active = copy
 
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.object.modifier_add(type="ARMATURE")
-
-                armature_modifiers = (mod for mod in copy.modifiers if mod.type == "ARMATURE")
-                for mod in armature_modifiers:
-                    mod.object = copy.parent
+                mod = obj.modifiers.new("Armature", "ARMATURE")
+                mod.object = armature
 
                 new_armatures.append(armature)
 
-        user_preferences = context.user_preferences
-        addon_prefs = user_preferences.addons["dos2de_bullet_exporter"].preferences
+        #bpy.ops.object.select_all(action='DESELECT')
+        #bpy.context.scene.objects.active = None
 
         for obj in export_objects:
             phys_type = bpy.data.objects[obj.name].game.physics_type
-            if addon_prefs.export_use_defaults:
-                
+
+            if addon_prefs is not None and addon_prefs.export_use_defaults:
                 if phys_type is None or phys_type == "NO_COLLISION":
                     physics_type = addon_prefs.default_physics_type
                     bpy.data.objects[obj.name].game.physics_type = physics_type
@@ -327,53 +416,14 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                     bpy.data.objects[obj.name].game.use_collision_bounds = True
 
             if phys_type is not None and phys_type != "NO_COLLISION":
-                #self.export_bullet(context, obj)
-                continue
+                print("[DOS2DE-Physics] Exporting object '{}'".format(obj.name))
+                self.export_bullet(context, obj)
 
-        bpy.ops.object.select_all(action='DESELECT')
-
-        for obj in export_objects:
-            if obj is not None:
-                obj.select = True
-
-        for obj in new_armatures:
-            if obj is not None:
-                obj.select = True
-
-        bpy.ops.object.delete(use_global=True)
-
-        for block in bpy.data.meshes:
-            if block.users == 0:
-                bpy.data.meshes.remove(block)
-
-        for block in bpy.data.armatures:
-            if block.users == 0:
-                bpy.data.armatures.remove(block)
-
-        bpy.ops.object.select_all(action='DESELECT')
-
-        context.scene.render.engine = prev_engine
-
-        for obj in selected_objects:
-            obj.select = True
-        
-        if active_object is not None:
-            bpy.context.scene.objects.active = active_object
-        
-        # Return to previous mode
-        if last_mode is not None and active_object is not None:
-            if active_object.type != "ARMATURE" and current_mode == "POSE":
-                bpy.ops.object.mode_set(mode="OBJECT")
-            else:
-                bpy.ops.object.mode_set (mode=last_mode)
+        self.finish(context, export_objects=export_objects, new_armatures=new_armatures, 
+                physenabled_objects=physenabled_objects, selected_objects=selected_objects,
+                    active_object=active_object, prev_engine=prev_engine, last_mode=last_mode)
 
         return {"FINISHED"}
 
 def menu_func(self, context):
     self.layout.operator(PhysicsExporter.bl_idname, text="Divinity Physics (.bullet, .bin)")
-
-def register():
-    bpy.types.INFO_MT_file_export.append(menu_func)
-
-def unregister():
-    bpy.types.INFO_MT_file_export.remove(menu_func)

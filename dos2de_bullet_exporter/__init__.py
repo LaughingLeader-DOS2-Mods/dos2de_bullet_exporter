@@ -3,8 +3,6 @@ import bpy
 from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty
 from bpy.types import Operator, OperatorFileListElement, AddonPreferences
 
-from . import physics_exporter
-
 bl_info = {
     "name": "Divinity Physics Exporter",
     "author": "LaughingLeader",
@@ -19,6 +17,13 @@ bl_info = {
     "category": "Import-Export"
 }
 
+# Fix for reloads
+if "bpy" in locals():
+    from . import physics_exporter
+    import imp
+    if "physics_exporter" in locals():
+        imp.reload(physics_exporter) # noqa
+
 def enum_members_from_type(rna_type, prop_str):
     prop = rna_type.bl_rna.properties[prop_str]
     return [(i.identifier, i.name, i.description, i.icon, i.value) for i in prop.enum_items.values()]
@@ -26,14 +31,23 @@ def enum_members_from_type(rna_type, prop_str):
 physics_type_items = enum_members_from_type(bpy.types.GameObjectSettings, "physics_type")
 collision_bounds_type_items = enum_members_from_type(bpy.types.GameObjectSettings, "collision_bounds_type")
 
+from os.path import basename, dirname
+dos2de_physics_preferences_id = basename(dirname(__file__))
+
 class DivinityPhysicsExporterAddonPreferences(AddonPreferences):
-    bl_idname = "dos2de_physics_exporter"
+    bl_idname = dos2de_physics_preferences_id
 
     binutil_path = StringProperty(
         name="LSPakUtilityBulletToPhysX",
         description="Path to the exe that converts bullet files to bin",
         default="C:\The Divinity Engine 2\DefEd\LSPakUtilityBulletToPhysX.exe",
         subtype='FILE_PATH'
+    )
+    
+    export_combine_visible = BoolProperty(
+        name="Combine Visible Meshes",
+        description="Combine all copies of visible meshes before exporting",
+        default=True
     )
     
     export_use_defaults = BoolProperty(
@@ -64,24 +78,42 @@ class DivinityPhysicsExporterAddonPreferences(AddonPreferences):
 
         layout.label(text="Export Defaults:", icon="EXPORT")
         box = layout.box()
-        box.prop(self, "export_autosetup")
+        box.prop(self, "export_use_defaults")
         box.prop(self, "default_physics_type")
         box.prop(self, "default_collision_bounds_type")
 
+def get_preferences(context):
+    user_preferences = context.user_preferences
+    
+    if dos2de_physics_preferences_id in user_preferences.addons:
+        return user_preferences.addons[dos2de_physics_preferences_id].preferences
+    
+    return None
+
+addon_keymaps = []
+
 def register():
     bpy.utils.register_module(__name__)
-    physics_exporter.register()
+    
+    bpy.types.INFO_MT_file_export.append(physics_exporter.menu_func)
 
-    #wm = bpy.context.window_manager
-    #m = wm.keyconfigs.addon.keymaps.new('Window', space_type='EMPTY', region_type='WINDOW', modal=False)
-    #kmi = km.keymap_items.new(BulletDataExporter.bl_idname, 'E', 'PRESS', ctrl=True, shift=True, alt=True)
-    #print(__name__)
-    #kmi.properties.name = ExportDAE.bl_idname
-    #addon_keymaps.append((km, kmi))
+    wm = bpy.context.window_manager
+    km = wm.keyconfigs.addon.keymaps.new('Window', space_type='EMPTY', region_type='WINDOW', modal=False)
+    kmi = km.keymap_items.new(physics_exporter.PhysicsExporter.bl_idname, 'E', 'PRESS', ctrl=True, shift=True, alt=True)
+    addon_keymaps.append((km, kmi))
 
 def unregister():
     bpy.utils.unregister_module(__name__)
-    physics_exporter.unregister()
+    bpy.types.INFO_MT_file_export.remove(physics_exporter.menu_func)
 
+    try:
+        wm = bpy.context.window_manager
+        kc = wm.keyconfigs.addon
+        if kc:
+            for km, kmi in addon_keymaps:
+                km.keymap_items.remove(kmi)
+        addon_keymaps.clear()
+    except:
+        pass
 if __name__ == "__main__":
     register()
