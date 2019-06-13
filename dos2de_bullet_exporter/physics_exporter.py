@@ -98,7 +98,6 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                 self.update_path = True
         return
 
-#   ==== Default Properties Start ====
     yup_enabled = BoolProperty(
         name="Y-Up Rotation",
         description="Rotates the object for a Y-up world",
@@ -125,7 +124,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         default="",
         options={'HIDDEN'}
     )
-#   ==== Default Properties End ====
+
     object_types = EnumProperty(
         name="Export Objects",
         options={"ENUM_FLAG"},
@@ -135,6 +134,12 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                ("SELECTED", "Selected", "Export only selected objects (and visible in active layers if that applies)")
         ),
         default={"LAYERS", "VISIBLE"}
+    )
+
+    export_combine_visible = BoolProperty(
+        name="Combine Visible Meshes",
+        description="Combine all copies of visible meshes before exporting",
+        default=False
     )
 
     update_path = BoolProperty(
@@ -172,6 +177,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         box = layout.box()
         box.prop(self, "yup_enabled")
         box.prop(self, "binconversion_enabled")
+        box.prop(self, "export_combine_visible")
 
     @contextmanager
     def text_snippet(self, context, export_filepath):
@@ -239,6 +245,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         if addon_prefs is not None:
             self.binconversion_enabled = os.path.isfile(addon_prefs.binutil_path)
             self.binutil_path = addon_prefs.binutil_path
+            self.export_combine_visible = addon_prefs.export_combine_visible
         
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}

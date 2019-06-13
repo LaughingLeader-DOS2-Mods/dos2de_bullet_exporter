@@ -39,7 +39,7 @@ class DivinityPhysicsExporterAddonPreferences(AddonPreferences):
 
     binutil_path = StringProperty(
         name="LSPakUtilityBulletToPhysX",
-        description="Path to the exe that converts bullet files to bin",
+        description="Path to LSPakUtilityBulletToPhysX.exe that converts bullet files to bin\nLocated within your Divinity Engine/DefEd folder by default",
         default="",
         subtype='FILE_PATH'
     )
@@ -81,6 +81,7 @@ class DivinityPhysicsExporterAddonPreferences(AddonPreferences):
         box.prop(self, "export_use_defaults")
         box.prop(self, "default_physics_type")
         box.prop(self, "default_collision_bounds_type")
+        box.prop(self, "export_combine_visible")
 
 def get_preferences(context):
     user_preferences = context.user_preferences
