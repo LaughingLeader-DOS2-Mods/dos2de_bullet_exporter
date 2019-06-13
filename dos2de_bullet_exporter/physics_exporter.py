@@ -255,8 +255,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         export_objects = args["export_objects"]
         new_armatures = args["new_armatures"]
         prev_engine = args["prev_engine"]
-        physenabled_objects = args["physenabled_objects"]
-        selected_objects = args["selected_objects"]
+        object_settings = args["object_settings"]
         active_object = args["active_object"]
         last_mode = args["last_mode"]
 
@@ -278,11 +277,12 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         for obj in context.scene.objects:
             obj.select = False
 
-        for obj in physenabled_objects:
-            bpy.data.objects[obj.name].game.use_collision_bounds = True
-
-        for obj in selected_objects:
-            obj.select = True
+        for k in object_settings:
+            settings = object_settings[k]
+            obj = context.scene.objects[k]
+            obj.select = settings["selected"]
+            obj.hide_render = settings["hide_render"]
+            bpy.data.objects[obj.name].game.use_collision_bounds = settings["use_collision_bounds"]
         
         if active_object is not None:
             bpy.context.scene.objects.active = active_object
@@ -303,9 +303,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         export_objects = []
         new_armatures = []
         armature_copies = {}
-
-        selected_objects = []
-        physenabled_objects = []
+        object_settings = {}
 
         last_mode = getattr(bpy.context.object, "mode", None)
         
@@ -314,9 +312,12 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
             active_object = bpy.context.scene.objects.active
 
         for obj in context.scene.objects:
-            if obj.select:
-                selected_objects.append(obj)
-                obj.select = False
+
+            object_settings[obj.name] = {
+                "selected": obj.select,
+                "hide_render": obj.hide_render,
+                "use_collision_bounds": bpy.data.objects[obj.name].game.use_collision_bounds
+            }
 
             if obj.type == "MESH" and self.can_export_object(context, obj):
                 print("[DOS2DE-Physics] Copying object '{}'.".format(obj.name))
@@ -325,6 +326,8 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                 copy.data = obj.data.copy()
                 context.scene.objects.link(copy)
                 export_objects.append(copy)
+
+                copy.hide_render = False
 
                 if obj.parent is not None:
                     if obj.parent.name in armature_copies:
@@ -338,17 +341,20 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                         new_armatures.append(parent_copy)
                         copy.parent = parent_copy
                         armature_copies[obj.name] = parent_copy
-        
+                        parent_copy.hide_render = False
+
+            obj.select = False
+            obj.hide_render = True
+
             #Using copies, hide the originals
-            if bpy.data.objects[obj.name].game.use_collision_bounds is True:
-                physenabled_objects.append(obj)
+            if bpy.data.objects[obj.name] is not None:
                 bpy.data.objects[obj.name].game.use_collision_bounds = False
 
         if len(export_objects) <= 0:
             print("[DOS2DE-Physics] No object to export! Cancelling.")
             self.finish(context, export_objects=export_objects, new_armatures=new_armatures, 
-                    physenabled_objects=physenabled_objects, selected_objects=selected_objects,
-                        active_object=active_object, prev_engine=prev_engine, last_mode=last_mode)
+                    object_settings=object_settings, active_object=active_object, 
+                    prev_engine=prev_engine, last_mode=last_mode)
             return {'CANCELLED'}
 
         bpy.context.scene.objects.active = None
@@ -359,6 +365,8 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         addon_prefs = get_preferences(context)
 
         if addon_prefs.export_combine_visible and len(export_objects) > 1:
+            print("[DOS2DE-Physics] Joining objects.")
+
             for obj in export_objects:
                 obj.select = True
 
@@ -367,6 +375,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
 
             export_objects.clear()
             export_objects.append(bpy.context.scene.objects.active)
+            print("[DOS2DE-Physics] Objects joined into '{}'.".format(bpy.context.scene.objects.active.name))
             bpy.context.scene.objects.active.select = True
 
         if bpy.context.scene.objects.active is not None:
@@ -377,10 +386,10 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         for obj in export_objects:
             if self.yup_enabled:
                 print("[DOS2DE-Physics] Rotating object '{}' to y-up.".format(obj.name))
-                obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(-90), 3, 'X')).to_euler()
+                obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(90), 3, 'X')).to_euler()
 
             if obj.parent is None or obj.parent.type != "ARMATURE":
-
+                print("[DOS2DE-Physics] Creating armature for '{}'.".format(obj.name))
                 #bpy.ops.object.armature_add()
                 #armature = bpy.context.scene.objects.active
                 data_name = 'armbexporttempdata-{}'.format(arm_num)
@@ -401,27 +410,30 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                 mod.object = armature
 
                 new_armatures.append(armature)
-
-        #bpy.ops.object.select_all(action='DESELECT')
-        #bpy.context.scene.objects.active = None
+                print(" [DOS2DE-Physics] Armature '{}' created.".format(armature.name))
 
         for obj in export_objects:
             phys_type = bpy.data.objects[obj.name].game.physics_type
 
+            print("[DOS2DE-Physics] Phys type for '{}' is {}.".format(obj.name, phys_type))
+
             if addon_prefs is not None and addon_prefs.export_use_defaults:
                 if phys_type is None or phys_type == "NO_COLLISION":
+                    print("[DOS2DE-Physics] Using default physics settings for '{}'.".format(obj.name))
                     physics_type = addon_prefs.default_physics_type
                     bpy.data.objects[obj.name].game.physics_type = physics_type
                     bpy.data.objects[obj.name].game.collision_bounds_type = addon_prefs.default_collision_bounds_type
                     bpy.data.objects[obj.name].game.use_collision_bounds = True
 
-            if phys_type is not None and phys_type != "NO_COLLISION":
+            phys_enabled = bpy.data.objects[obj.name].game.use_collision_bounds
+
+            if phys_enabled:
                 print("[DOS2DE-Physics] Exporting object '{}'".format(obj.name))
                 self.export_bullet(context, obj)
 
         self.finish(context, export_objects=export_objects, new_armatures=new_armatures, 
-                physenabled_objects=physenabled_objects, selected_objects=selected_objects,
-                    active_object=active_object, prev_engine=prev_engine, last_mode=last_mode)
+                object_settings=object_settings, active_object=active_object, 
+                prev_engine=prev_engine, last_mode=last_mode)
 
         return {"FINISHED"}
 
