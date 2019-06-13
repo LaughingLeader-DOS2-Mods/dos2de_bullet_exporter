@@ -33,11 +33,48 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         name="Directory",
         options={"HIDDEN"}
     )
+
+    export_directory = StringProperty(
+        name="Project Export Directory",
+        default="",
+        options={"HIDDEN"}
+    )
+
+    auto_determine_path = BoolProperty(
+        default=False,
+        name="Use Project Pathways",
+        description="Automatically determine the export path via Divinity Exporter project settings"
+    )
     
+    divinity_exporter_active = BoolProperty(
+        default=False,
+        options={'HIDDEN'}
+    )
+
     def update_filepath(self, context):
         if self.filepath != "" and self.last_filepath == "":
             self.last_filepath = self.filepath
-        
+
+        if self.directory == "":
+            self.directory = os.path.dirname(bpy.data.filepath)
+
+        if self.filepath == "":
+            self.filepath = bpy.path.ensure_ext("{}\\{}".format(self.directory, str.replace(bpy.path.basename(bpy.data.filepath), ".blend", "")), self.filename_ext)
+            print("[DOS2DE-Physics] Set initial path to '{}'.".format(self.filepath))
+
+        user_preferences = context.user_preferences
+        if "io_scene_dos2de" in user_preferences.addons:
+            addon_prefs = user_preferences.addons["io_scene_dos2de"].preferences
+            
+            if addon_prefs is not None:
+                self.divinity_exporter_active = True
+                if self.auto_determine_path == True and addon_prefs.auto_export_subfolder == True and self.export_directory != "":
+                    auto_directory = "{}\\{}".format(self.export_directory, "Physics")
+                    
+                    if os.path.exists(auto_directory):
+                        self.directory = auto_directory
+                        self.update_path = True
+
         if self.filepath != "":
             if self.auto_name == "LAYER":
                 if hasattr(bpy.data.scenes["Scene"], "namedlayers"):
@@ -85,29 +122,20 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         )  
         
     binutil_path = StringProperty(
-        name="LSPakUtilityBulletToPhysX",
-        description="Path to the exe that converts bullet files to bin",
-        default="C:\The Divinity Engine 2\DefEd\LSPakUtilityBulletToPhysX.exe",
-        subtype='FILE_PATH'
-        )
-#   ==== Default Properties End ====        
-    use_active_layers = BoolProperty(
-        name="Active Layers Only",
-        description="Export only objects on the active layers.",
-        default=True
-        )
-    use_export_selected = BoolProperty(
-        name="Selected Only",
-        description="Export only selected objects (and visible in active "
-                    "layers if that applies).",
-        default=False
-        )
-
-    use_export_visible = BoolProperty(
-        name="Visible Only",
-        description="Export only visible, unhidden, selectable objects",
-        default=True
-        )
+        default="",
+        options={'HIDDEN'}
+    )
+#   ==== Default Properties End ====
+    object_types = EnumProperty(
+        name="Export Objects",
+        options={"ENUM_FLAG"},
+        items=(
+               ("LAYERS", "Active Layers", "Export only objects on the active layers"),
+               ("VISIBLE", "Visible", "Export only visible objects"),
+               ("SELECTED", "Selected", "Export only selected objects (and visible in active layers if that applies)")
+        ),
+        default={"LAYERS", "VISIBLE"}
+    )
 
     update_path = BoolProperty(
         default=False,
@@ -131,6 +159,20 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         options={"HIDDEN"},
         )
 
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "object_types")
+        layout.label(text="Path:", icon="EXPORT")
+        box = layout.box()
+        if self.divinity_exporter_active:
+            box.prop(self, "auto_determine_path")
+        box.prop(self, "auto_name")
+
+        layout.label(text="Extra:", icon="LOGIC")
+        box = layout.box()
+        box.prop(self, "yup_enabled")
+        box.prop(self, "binconversion_enabled")
+
     @contextmanager
     def text_snippet(self, context, export_filepath):
         self.snip = context.blend_data.texts.new('phys_export_snip')
@@ -150,7 +192,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         
         if self.setpath_initial:
             self.update_filepath(context)
-            setpath_initial = False
+            self.setpath_initial = False
         
         if self.update_path and self.auto_filepath != "":
             update = True
@@ -159,14 +201,45 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         return update
 
     def invoke(self, context, event):
-        if self.filepath != "" and self.last_filepath == "":
-            self.last_filepath = self.filepath
         if self.auto_name == "LAYER" and hasattr(bpy.data.scenes["Scene"], "namedlayers") == False:
             #bpy.context.window_manager.popup_menu(error_missing_layer_names, title="Warning", icon='ERROR')
             self.auto_name = "DISABLED"
-        if self.binconversion_enabled:
-            if self.binutil_path is None or self.binutil_path == "" or os.path.isfile(self.binutil_path) == False:
-                self.binconversion_enabled = False
+
+        if self.setpath_initial:
+            self.update_filepath(context)
+            self.setpath_initial = False
+
+        user_preferences = context.user_preferences
+        if "io_scene_dos2de" in user_preferences.addons:
+            addon_prefs = user_preferences.addons["io_scene_dos2de"].preferences
+            if addon_prefs is not None:
+                self.auto_determine_path = getattr(addon_prefs, "auto_export_subfolder", None) is True
+
+                if self.auto_determine_path:
+                    projects = addon_prefs.projects.project_data
+                    if projects:
+                        for project in projects:
+                            project_folder = project.project_folder
+                            export_folder = project.export_folder
+
+                            print("[DOS2DE-Physics] Checking path '{}' for project folder '{}'.".format(self.filepath, project_folder))
+
+                            if(export_folder != "" and project_folder != "" and 
+                                bpy.path.is_subdir(self.filepath, project_folder)):
+                                    self.export_directory = export_folder
+                                    self.directory = export_folder
+                                    self.filepath = export_folder
+                                    self.last_filepath = self.filepath
+                                    print("[DOS2DE-Physics] Setting start path to project export folder: \"{}\"".format(export_folder))
+                                    self.update_filepath(context)
+                                    break
+
+        from . import get_preferences
+        addon_prefs = get_preferences(context)
+        if addon_prefs is not None:
+            self.binconversion_enabled = os.path.isfile(addon_prefs.binutil_path)
+            self.binutil_path = addon_prefs.binutil_path
+        
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -190,11 +263,11 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         return obj_filepath
 
     def can_export_object(self, context, obj):
-        if self.use_export_visible and obj.hide or obj.hide_select:
+        if "VISIBLE" in self.object_types and obj.hide or obj.hide_select:
             return False
-        if self.use_export_selected and obj.select == False:
+        if "SELECTED" in self.object_types and obj.select == False:
             return False
-        if self.use_active_layers:
+        if "LAYERS" in self.object_types:
             for i in range(20):
                 if context.scene.layers[i] and not obj.layers[i]:
                     return False
