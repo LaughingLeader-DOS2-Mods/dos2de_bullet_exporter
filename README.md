@@ -5,8 +5,8 @@ This is a simple addon for Blender 2.79 that allows you to export bullet/bin fil
 ## Features:  
 * Export Blender Game physics to .bullet, and optionally convert that .bullet to .bin, for the Definitive Edition.
 * Automatically rotate the object for DOS2's Y-Up world (Blender is Z-Up).
-* Use the layer name or active object name when exporting.
-
+* Use the layer name or active object name when exporting.  
+* _**\*New\***_ Export meshes with minimal setup necessary - The exporter will default to Static/Convex Mesh (or whatever you set it to) and automatically join meshes / parent them if enabled. This all happens to copies, so as to not modify your actual objects.
 
 ## Installing
 
