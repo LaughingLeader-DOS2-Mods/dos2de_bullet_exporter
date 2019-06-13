@@ -494,18 +494,18 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
 
         for obj in export_objects:
             phys_type = bpy.data.objects[obj.name].game.physics_type
+            phys_enabled = bpy.data.objects[obj.name].game.use_collision_bounds
 
             print("[DOS2DE-Physics] Phys type for '{}' is {}.".format(obj.name, phys_type))
 
             if addon_prefs is not None and addon_prefs.export_use_defaults:
-                if phys_type is None or phys_type == "NO_COLLISION":
+                if phys_enabled is False or phys_type is None or phys_type == "NO_COLLISION":
                     print("[DOS2DE-Physics] Using default physics settings for '{}'.".format(obj.name))
                     physics_type = addon_prefs.default_physics_type
                     bpy.data.objects[obj.name].game.physics_type = physics_type
                     bpy.data.objects[obj.name].game.collision_bounds_type = addon_prefs.default_collision_bounds_type
                     bpy.data.objects[obj.name].game.use_collision_bounds = True
-
-            phys_enabled = bpy.data.objects[obj.name].game.use_collision_bounds
+                    phys_enabled = True
 
             if phys_enabled:
                 print("[DOS2DE-Physics] Exporting object '{}'".format(obj.name))
