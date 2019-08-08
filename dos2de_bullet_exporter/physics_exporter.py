@@ -104,6 +104,12 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         default=True
         )
 
+    yup_inverse = BoolProperty(
+        name="Y-Up Inverse",
+        description="Rotate in the opposite direction on the x-axis",
+        default=False
+        )
+
     auto_name = EnumProperty(
         name="Name",
         description="Auto-generate a filename based on a property name",
@@ -175,7 +181,9 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
 
         layout.label(text="Extra:", icon="LOGIC")
         box = layout.box()
-        box.prop(self, "yup_enabled")
+        row = box.row()
+        row.prop(self, "yup_enabled")
+        row.prop(self, "yup_inverse")
         box.prop(self, "binconversion_enabled")
         box.prop(self, "export_combine_visible")
 
@@ -338,6 +346,13 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         active_object = args["active_object"]
         last_mode = args["last_mode"]
 
+        last_material_settings = args["last_material_settings"]
+
+        if last_material_settings is not None:
+            for mat_tuple in last_material_settings:
+                mat = mat_tuple[0]
+                mat.game_settings.alpha_blend = mat_tuple[1]
+
         for obj in delete_objects:
             if obj is not None:
                 print("[DOS2DE-Physics] Deleting {}".format(obj.name))
@@ -439,7 +454,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
             print("[DOS2DE-Physics] No object to export! Cancelling.")
             self.finish(context, export_objects=export_objects, delete_objects=delete_objects, 
                     object_settings=object_settings, active_object=active_object, 
-                    prev_engine=prev_engine, last_mode=last_mode)
+                    prev_engine=prev_engine, last_mode=last_mode, last_material_settings=None)
             return {'CANCELLED'}
 
         from . import get_preferences
@@ -475,11 +490,15 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         
         arm_num = 1
 
+        last_material_settings = []
+
         for obj in export_objects:
             if self.yup_enabled:
                 print("[DOS2DE-Physics] Rotating object '{}' to y-up.".format(obj.name))
-                obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(-90), 3, 'X')).to_euler()
-
+                if self.yup_inverse:
+                    obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(90), 3, 'X')).to_euler()
+                else:
+                    obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(-90), 3, 'X')).to_euler()
             if (obj.parent is None or obj.parent.type != "ARMATURE") and obj.type != "ARMATURE":
                 print("[DOS2DE-Physics] Creating armature for '{}'.".format(obj.name))
                 #bpy.ops.object.armature_add()
@@ -493,17 +512,24 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                 armature.hide_render = False
                 context.scene.objects.link(armature)
 
-                obj.parent = armature
+                obj.select = True
+
+                if len(obj.data.materials) > 0:
+                    mat = obj.data.materials[0]
+                    if(mat.game_settings.alpha_blend is not "OPAQUE"):
+                        last_material_settings.append((mat, mat.game_settings.alpha_blend))
+                        print(" [DOS2DE-Physics] Set non-opaque material '{}[{}]' to OPAQUE.".format(mat.name, mat.game_settings.alpha_blend))
+                        mat.game_settings.alpha_blend = "OPAQUE"
+
+                context.scene.objects.active = armature
+                bpy.ops.object.parent_set(type="ARMATURE")
 
                 for i in range(20):
                     armature.layers[i] = obj.layers[i]
 
-                mod = obj.modifiers.new("Armature", "ARMATURE")
-                mod.object = armature
-
                 delete_objects.append(armature)
                 print(" [DOS2DE-Physics] Armature '{}' created.".format(armature.name))
-
+        
         for obj in [x for x in export_objects if x.type == "MESH"]:
             phys_type = bpy.data.objects[obj.name].game.physics_type
             phys_enabled = bpy.data.objects[obj.name].game.use_collision_bounds
@@ -525,7 +551,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
 
         self.finish(context, export_objects=export_objects, delete_objects=delete_objects, 
                 object_settings=object_settings, active_object=active_object, 
-                prev_engine=prev_engine, last_mode=last_mode)
+                prev_engine=prev_engine, last_mode=last_mode, last_material_settings=last_material_settings)
 
         return {"FINISHED"}
 
