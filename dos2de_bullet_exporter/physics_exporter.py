@@ -102,13 +102,19 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         name="Y-Up Rotation",
         description="Rotates the object for a Y-up world",
         default=True
-        )
+    )
 
     yup_inverse = BoolProperty(
         name="Y-Up Inverse",
         description="Rotate in the opposite direction on the x-axis",
         default=False
-        )
+    )
+
+    xflip = BoolProperty(
+        name="X-Flip",
+        description="X-flip the mesh before exporting",
+        default=True
+    )
 
     auto_name = EnumProperty(
         name="Name",
@@ -118,13 +124,13 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                ("OBJECT", "Active Object Name", "")),
         default=("LAYER"),
         update=update_filepath
-        )
+    )
         
     binconversion_enabled = BoolProperty(
         name="Convert to Bin",
         description="Converts the resulting .bullet file to .bin",
         default=True
-        )  
+    )  
         
     binutil_path = StringProperty(
         default="",
@@ -151,24 +157,24 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
     update_path = BoolProperty(
         default=False,
         options={"HIDDEN"},
-        )
+    )
         
     setpath_initial = BoolProperty(
         default=True,
         options={"HIDDEN"},
-        )
+    )
 
     auto_filepath = StringProperty(
         name="Auto Filepath",
         default="",
         options={"HIDDEN"},
-        )     
+    )     
         
     last_filepath = StringProperty(
         name="Last Filepath",
         default="",
         options={"HIDDEN"},
-        )
+    )
 
     def draw(self, context):
         layout = self.layout
@@ -184,6 +190,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         row = box.row()
         row.prop(self, "yup_enabled")
         row.prop(self, "yup_inverse")
+        box.prop(self, "xflip")
         box.prop(self, "binconversion_enabled")
         box.prop(self, "export_combine_visible")
 
@@ -499,6 +506,13 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                     obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(90), 3, 'X')).to_euler()
                 else:
                     obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(-90), 3, 'X')).to_euler()
+            if self.xflip == True:
+                obj.scale[0] *= -1
+            #return {"FINISHED"}
+
+            if self.yup_enabled or self.xflip:
+                self.transform_apply(context, obj)
+            
             if (obj.parent is None or obj.parent.type != "ARMATURE") and obj.type != "ARMATURE":
                 print("[DOS2DE-Physics] Creating armature for '{}'.".format(obj.name))
                 #bpy.ops.object.armature_add()
