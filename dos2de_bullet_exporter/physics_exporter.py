@@ -16,19 +16,25 @@ def error_missing_layer_names(self, context):
 def error_no_active_object(self, context):
     self.layout.label("No active object set.")
 
-class PhysicsExporter(bpy.types.Operator, ExportHelper):
+class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
     """Export physics data with Divinity-specific options (.bullet, .bin)"""
     bl_idname = "export_scene.dos2de_physics"
     bl_label = "Export Divinity Physics"
     bl_options = {"PRESET", "REGISTER", "UNDO"}
 
-    filename_ext = ".bullet"
+    filename_ext = StringProperty(
+        name="File Extension",
+        options={"HIDDEN"},
+        default=".bullet"
+    )
+
     filter_glob = StringProperty(default="*.bullet;*.bin", options={"HIDDEN"})
     
     filename = StringProperty(
         name="File Name",
         options={"HIDDEN"}
-    )    
+    )
+
     directory = StringProperty(
         name="Directory",
         options={"HIDDEN"}
@@ -70,7 +76,6 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                 self.divinity_exporter_active = True
                 if self.auto_determine_path == True and addon_prefs.auto_export_subfolder == True and self.export_directory != "":
                     auto_directory = "{}\\{}".format(self.export_directory, "Physics")
-                    
                     if os.path.exists(auto_directory):
                         self.directory = auto_directory
                         self.update_path = True
@@ -252,7 +257,6 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
                                     self.filepath = export_folder
                                     self.last_filepath = self.filepath
                                     print("[DOS2DE-Physics] Setting start path to project export folder: \"{}\"".format(export_folder))
-                                    self.update_filepath(context)
                                     break
 
         from . import get_preferences
@@ -262,6 +266,7 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
             self.binutil_path = addon_prefs.binutil_path
             self.export_combine_visible = addon_prefs.export_combine_visible
         
+        self.update_filepath(context)
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -570,4 +575,4 @@ class PhysicsExporter(bpy.types.Operator, ExportHelper):
         return {"FINISHED"}
 
 def menu_func(self, context):
-    self.layout.operator(PhysicsExporter.bl_idname, text="Divinity Physics (.bullet, .bin)")
+    self.layout.operator(LEADER_OT_physics_exporter.bl_idname, text="Divinity Physics (.bullet, .bin)")
