@@ -100,7 +100,7 @@ def register():
 
     wm = bpy.context.window_manager
     km = wm.keyconfigs.addon.keymaps.new('Window', space_type='EMPTY', region_type='WINDOW', modal=False)
-    kmi = km.keymap_items.new(physics_exporter.PhysicsExporter.bl_idname, 'E', 'PRESS', ctrl=True, shift=True, alt=True)
+    kmi = km.keymap_items.new(physics_exporter.LEADER_OT_physics_exporter.bl_idname, 'E', 'PRESS', ctrl=True, shift=True, alt=True)
     addon_keymaps.append((km, kmi))
 
 def unregister():
