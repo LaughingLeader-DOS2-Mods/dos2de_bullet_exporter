@@ -16,6 +16,9 @@ def error_missing_layer_names(self, context):
 def error_no_active_object(self, context):
     self.layout.label("No active object set.")
 
+from . import physics_type_items
+from . import collision_bounds_type_items
+
 class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
     """Export physics data with Divinity-specific options (.bullet, .bin)"""
     bl_idname = "export_scene.dos2de_physics"
@@ -103,16 +106,13 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
                 self.update_path = True
         return
 
-    yup_enabled = BoolProperty(
-        name="Y-Up Rotation",
-        description="Rotates the object for a Y-up world",
-        default=True
-    )
-
-    yup_inverse = BoolProperty(
-        name="Y-Up Inverse",
-        description="Rotate in the opposite direction on the x-axis",
-        default=False
+    yup_rotation = EnumProperty(
+        name="Y-Up",
+        description="Rotate the object for a Y-up world",
+        items=(("DISABLED", "Disabled", ""),
+               ("INVERSE", "Inverse", "Rotate in the opposite direction on the x-axis"),
+               ("ROTATE", "Enabled", "Normal y-up rotation")),
+        default=("ROTATE")
     )
 
     xflip = BoolProperty(
@@ -159,6 +159,20 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         default=False
     )
 
+    physics_type = EnumProperty(
+        name="Physics Type",
+        description="The type of physical representation to use for meshes",
+        items=physics_type_items,
+        default=("STATIC")
+    )
+
+    collision_bounds_type = EnumProperty(
+        name="Physics Bounds",
+        description="The collision shape that better fits the object",
+        items=collision_bounds_type_items,
+        default=("CONVEX_HULL")
+    )
+
     update_path = BoolProperty(
         default=False,
         options={"HIDDEN"},
@@ -183,7 +197,15 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
 
     def draw(self, context):
         layout = self.layout
+
         layout.prop(self, "object_types")
+        layout.label(text="Physics:", icon="PHYSICS")
+        box = layout.box()
+        box.prop(self, "physics_type", text="Type")
+        box.prop(self, "collision_bounds_type", text="Bounds")
+        box.prop(self, "yup_rotation")
+        box.prop(self, "xflip")
+
         layout.label(text="Path:", icon="EXPORT")
         box = layout.box()
         if self.divinity_exporter_active:
@@ -192,10 +214,6 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
 
         layout.label(text="Extra:", icon="LOGIC")
         box = layout.box()
-        row = box.row()
-        row.prop(self, "yup_enabled")
-        row.prop(self, "yup_inverse")
-        box.prop(self, "xflip")
         box.prop(self, "binconversion_enabled")
         box.prop(self, "export_combine_visible")
 
@@ -236,11 +254,11 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
             self.setpath_initial = False
 
         user_preferences = context.user_preferences
+
         if "io_scene_dos2de" in user_preferences.addons:
             addon_prefs = user_preferences.addons["io_scene_dos2de"].preferences
             if addon_prefs is not None:
                 self.auto_determine_path = getattr(addon_prefs, "auto_export_subfolder", None) is True
-
                 if self.auto_determine_path:
                     projects = addon_prefs.projects.project_data
                     if projects:
@@ -265,6 +283,8 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
             self.binconversion_enabled = os.path.isfile(addon_prefs.binutil_path)
             self.binutil_path = addon_prefs.binutil_path
             self.export_combine_visible = addon_prefs.export_combine_visible
+            self.physics_type = addon_prefs.default_physics_type
+            self.collision_bounds_type = addon_prefs.default_collision_bounds_type
         
         self.update_filepath(context)
         context.window_manager.fileselect_add(self)
@@ -505,9 +525,9 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         last_material_settings = []
 
         for obj in export_objects:
-            if self.yup_enabled:
+            if self.yup_rotation != "DISABLED":
                 print("[DOS2DE-Physics] Rotating object '{}' to y-up.".format(obj.name))
-                if self.yup_inverse:
+                if self.yup_rotation == "INVERSE":
                     obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(90), 3, 'X')).to_euler()
                 else:
                     obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(-90), 3, 'X')).to_euler()
@@ -515,7 +535,7 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
                 obj.scale[0] *= -1
             #return {"FINISHED"}
 
-            if self.yup_enabled or self.xflip:
+            if self.yup_rotation != "DISABLED" or self.xflip == True:
                 self.transform_apply(context, obj)
             
             if (obj.parent is None or obj.parent.type != "ARMATURE") and obj.type != "ARMATURE":
@@ -558,9 +578,8 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
             if addon_prefs is not None and addon_prefs.export_use_defaults:
                 if phys_enabled is False or phys_type is None or phys_type == "NO_COLLISION":
                     print("[DOS2DE-Physics] Using default physics settings for '{}'.".format(obj.name))
-                    physics_type = addon_prefs.default_physics_type
-                    bpy.data.objects[obj.name].game.physics_type = physics_type
-                    bpy.data.objects[obj.name].game.collision_bounds_type = addon_prefs.default_collision_bounds_type
+                    bpy.data.objects[obj.name].game.physics_type = self.physics_type
+                    bpy.data.objects[obj.name].game.collision_bounds_type = self.collision_bounds_type
                     bpy.data.objects[obj.name].game.use_collision_bounds = True
                     phys_enabled = True
 
