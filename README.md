@@ -55,12 +55,12 @@ The Divinity Engine 2\DefEd\LSPakUtilityBulletToPhysX.exe
 As of 6/12/2019, this addon no longer requires you to set up your models, and will do some default things to speed up the process for you:
 
 * Combine Visible Meshes  
-This addon creates temporary copies which it then exports. By enabling this option, the mesh copies will all be joined into oen mesh, saving you the step of having to possibly duplicate your meshes and join them separately (if you wanted to keep them separate in the actual visual resource).
+This addon creates temporary copies which it then exports. By enabling this option, the mesh copies will all be joined into one mesh, saving you the step of having to possibly duplicate your meshes and join them separately (if you wanted to keep them separate in the actual visual resource).
 
 * Automatic Armature Parenting  
 The mesh copies created will be parented to an armature if not already. This is purely for the Blender Game bullet exporter, but it saves you from having to do it yourself.
 
-* Defaullt to Project Folder  
+* Default to Project Folder  
 If the [Divinity Collada Exporter](https://github.com/LaughingLeader-DOS2-Mods/dos2de_collada_exporter) is active and set up with project folders, this addon will find the Assets/Physics folder and default to that location if this setting is enabled.
 
 ### Note: Importing Bin Files into The Divinity Engine 2
