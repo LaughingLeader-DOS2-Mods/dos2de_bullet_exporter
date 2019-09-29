@@ -44,6 +44,12 @@ mklink /j "C:\Path1\dos2de_bullet_exporter" "C:\Path2\scripts\addons\dos2de_bull
 
 ## Using this Addon
 
+### Exporting
+To export physics files, simply click on File -> Export -> Divinity Physics.
+
+By default, the exporter will export all visible meshes on active layers using the default physics settings set in the addon preferences (Static physics, Convex Hull shape). These settings are the most commonly used ones for exporting to the Divinity Engine. Convex Hull uses the shape of your mesh for the shape of the physics.
+
+### Automatic Bin Conversion
 Once you have the addon installed/activated, be sure to check out the Preferences screen (expand the dropdown For Divinity Physics Exporter in your User Preferences) to point it to LSPakUtilityBulletToPhysX.exe if you want to convert your .bullet files to .bin (what Divinity does when importing .bullet).
 
 By default, LSPakUtilityBulletToPhysX.exe is located at:
