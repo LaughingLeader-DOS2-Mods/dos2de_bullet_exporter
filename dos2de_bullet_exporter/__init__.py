@@ -24,12 +24,7 @@ if "bpy" in locals():
     if "physics_exporter" in locals():
         imp.reload(physics_exporter) # noqa
 
-def enum_members_from_type(rna_type, prop_str):
-    prop = rna_type.bl_rna.properties[prop_str]
-    return [(i.identifier, i.name, i.description, i.icon, i.value) for i in prop.enum_items.values()]
-
-physics_type_items = enum_members_from_type(bpy.types.GameObjectSettings, "physics_type")
-collision_bounds_type_items = enum_members_from_type(bpy.types.GameObjectSettings, "collision_bounds_type")
+from . import physics_exporter
 
 from os.path import basename, dirname
 dos2de_physics_preferences_id = basename(dirname(__file__))
@@ -59,14 +54,14 @@ class DivinityPhysicsExporterAddonPreferences(AddonPreferences):
     default_physics_type = EnumProperty(
         name="Default Physics Type",
         description="The type of physical representation to use for meshes",
-        items=physics_type_items,
+        items=physics_exporter.physics_type_items,
         default=("STATIC")
     )
 
     default_collision_bounds_type = EnumProperty(
         name="Default Bounds",
         description="The collision shape that better fits the object",
-        items=collision_bounds_type_items,
+        items=physics_exporter.collision_bounds_type_items,
         default=("CONVEX_HULL")
     )
 

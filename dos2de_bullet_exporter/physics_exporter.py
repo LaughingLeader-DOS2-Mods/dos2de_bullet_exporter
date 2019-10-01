@@ -16,8 +16,12 @@ def error_missing_layer_names(self, context):
 def error_no_active_object(self, context):
     self.layout.label("No active object set.")
 
-from . import physics_type_items
-from . import collision_bounds_type_items
+def enum_members_from_type(rna_type, prop_str):
+    prop = rna_type.bl_rna.properties[prop_str]
+    return [(i.identifier, i.name, i.description, i.icon, i.value) for i in prop.enum_items.values()]
+
+physics_type_items = enum_members_from_type(bpy.types.GameObjectSettings, "physics_type")
+collision_bounds_type_items = enum_members_from_type(bpy.types.GameObjectSettings, "collision_bounds_type")
 
 class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
     """Export physics data with Divinity-specific options (.bullet, .bin)"""
