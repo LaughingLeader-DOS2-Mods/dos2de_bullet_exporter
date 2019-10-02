@@ -473,6 +473,7 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
                 bpy.data.objects[obj.name].game.use_collision_bounds = False
 
         context.scene.objects.active = exportable_objects[0]
+        bpy.ops.object.mode_set(mode="OBJECT")
         print("[DOS2DE-Physics] Duplicating objects.")
         bpy.ops.object.duplicate()
         
