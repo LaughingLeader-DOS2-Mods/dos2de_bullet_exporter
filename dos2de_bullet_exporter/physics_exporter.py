@@ -6,7 +6,7 @@ from math import radians
 from mathutils import Euler, Matrix
 
 import bpy
-from bpy.props import StringProperty, BoolProperty, EnumProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty
 from bpy.types import Operator
 from bpy_extras.io_utils import ExportHelper
 
@@ -110,13 +110,46 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
                 self.update_path = True
         return
 
-    yup_rotation = EnumProperty(
-        name="Y-Up",
-        description="Rotate the object for a Y-up world",
-        items=(("DISABLED", "Disabled", ""),
-               ("INVERSE", "Inverse", "Rotate in the opposite direction on the x-axis"),
-               ("ROTATE", "Enabled", "Normal y-up rotation")),
-        default=("ROTATE")
+    use_rotation_apply_each = BoolProperty(
+        name="Apply Each Rotation",
+        description="Each rotation will be applied before the next",
+        default=False
+    )
+
+    use_rotation_axis_x = BoolProperty(
+        name="X",
+        description="Rotate the object on the x axis. Default direction to convert to a y-up world",
+        default=True
+    )
+
+    use_rotation_x_amount = FloatProperty(
+        name="Rotation Amount",
+        description="Rotate the object by this amount in degrees",
+        default=-90
+    )
+
+    use_rotation_axis_y = BoolProperty(
+        name="Y",
+        description="Rotate the object on the y axis",
+        default=False
+    )
+
+    use_rotation_y_amount = FloatProperty(
+        name="Rotation Amount",
+        description="Rotate the object by this amount in degrees",
+        default=0
+    )
+
+    use_rotation_axis_z = BoolProperty(
+        name="Z",
+        description="Rotate the object on the z axis",
+        default=False
+    )
+
+    use_rotation_z_amount = FloatProperty(
+        name="Rotation Amount",
+        description="Rotate the object by this amount in degrees",
+        default=0
     )
 
     xflip = BoolProperty(
@@ -207,8 +240,25 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         box = layout.box()
         box.prop(self, "physics_type", text="Type")
         box.prop(self, "collision_bounds_type", text="Bounds")
-        box.prop(self, "yup_rotation")
         box.prop(self, "xflip")
+        layout.label(text="Rotation:", icon="ROTATE")
+        box = layout.box()
+        box.prop(self, "use_rotation_apply_each")
+        row = box.column()
+        col = row.column()
+        col.prop(self, "use_rotation_axis_x")
+        if self.use_rotation_axis_x:
+            col.prop(self, "use_rotation_x_amount")
+        row = box.column()
+        col = row.column()
+        col.prop(self, "use_rotation_axis_y")
+        if self.use_rotation_axis_y:
+            col.prop(self, "use_rotation_y_amount")
+        row = box.column()
+        col = row.column()
+        col.prop(self, "use_rotation_axis_z")
+        if self.use_rotation_axis_z:
+            col.prop(self, "use_rotation_z_amount")
 
         layout.label(text="Path:", icon="EXPORT")
         box = layout.box()
@@ -530,17 +580,28 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         last_material_settings = []
 
         for obj in export_objects:
-            if self.yup_rotation != "DISABLED":
-                print("[DOS2DE-Physics] Rotating object '{}' to y-up.".format(obj.name))
-                if self.yup_rotation == "INVERSE":
-                    obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(90), 3, 'X')).to_euler()
-                else:
-                    obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(-90), 3, 'X')).to_euler()
+                #print("[DOS2DE-Physics] Rotating object '{}' on the {} axis.".format(obj.name, self.use_rotation_axis))
+            rotated = False
+            if self.use_rotation_axis_y == True:
+                obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_y_amount), 3, "Y")).to_euler()
+                rotated = True
+                if self.use_rotation_apply_each:
+                    self.transform_apply(context, obj)
+            if self.use_rotation_axis_z == True:
+                obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_z_amount), 3, "Z")).to_euler()
+                rotated = True
+                if self.use_rotation_apply_each:
+                    self.transform_apply(context, obj)
+            if self.use_rotation_axis_x == True:
+                obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_x_amount), 3, "X")).to_euler()
+                rotated = True
+                if self.use_rotation_apply_each:
+                    self.transform_apply(context, obj)
             if self.xflip == True:
                 obj.scale[0] *= -1
             #return {"FINISHED"}
 
-            if self.yup_rotation != "DISABLED" or self.xflip == True:
+            if rotated == True or self.xflip == True:
                 self.transform_apply(context, obj)
             
             if (obj.parent is None or obj.parent.type != "ARMATURE") and obj.type != "ARMATURE":
