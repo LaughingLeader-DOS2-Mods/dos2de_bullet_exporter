@@ -578,8 +578,27 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         arm_num = 1
 
         last_material_settings = []
+        last_cursor_loc = bpy.context.scene.cursor_location.copy()
 
         for obj in export_objects:
+            if self.xflip == True and obj.type == "MESH":
+                print("[DOS2DE-Physics] X-flipping mesh.")
+                context.scene.objects.active = obj
+                obj.select = True
+                bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+                bpy.context.scene.cursor_location = obj.location
+                if obj.scale[0] > 0:
+                    obj.scale[0] = -1
+                else:
+                    obj.scale[0] *= -1
+                bpy.ops.object.editmode_toggle()
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.mesh.flip_normals()
+                bpy.ops.object.editmode_toggle()
+                bpy.context.scene.cursor_location = last_cursor_loc
+                print("[DOS2DE-Physics] Last cursor loc: {} | Current cursor loc {}:".format(last_cursor_loc, bpy.context.scene.cursor_location))
+                bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+                self.transform_apply(context, obj)
                 #print("[DOS2DE-Physics] Rotating object '{}' on the {} axis.".format(obj.name, self.use_rotation_axis))
             rotated = False
             if self.use_rotation_axis_y == True:
@@ -597,13 +616,9 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
                 rotated = True
                 if self.use_rotation_apply_each:
                     self.transform_apply(context, obj)
-            if self.xflip == True:
-                obj.scale[0] *= -1
-            #return {"FINISHED"}
 
-            if rotated == True or self.xflip == True:
-                self.transform_apply(context, obj)
-            
+            self.transform_apply(context, obj)
+
             if (obj.parent is None or obj.parent.type != "ARMATURE") and obj.type != "ARMATURE":
                 print("[DOS2DE-Physics] Creating armature for '{}'.".format(obj.name))
                 #bpy.ops.object.armature_add()
