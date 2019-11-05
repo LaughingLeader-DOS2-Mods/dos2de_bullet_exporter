@@ -9,6 +9,7 @@ import bpy
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty
 from bpy.types import Operator
 from bpy_extras.io_utils import ExportHelper
+import bmesh
 
 def error_missing_layer_names(self, context):
     self.layout.label("Layer Names are not enabled. Please enable the Layer Management or Leader Helpers addon for layer names.")
@@ -469,15 +470,15 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
             else:
                 bpy.ops.object.mode_set (mode=last_mode)
 
-    def transform_apply(self, context, obj):
+    def transform_apply(self, context, obj, location=False, rotation=False, scale=False):
         if obj.parent is not None:
-            self.transform_apply(context, obj.parent)
+            self.transform_apply(context, obj.parent, location, rotation, scale)
         obj.select = True
         last_selected = getattr(context.scene.objects, "active", None)
         context.scene.objects.active = obj
         bpy.ops.object.mode_set(mode="OBJECT")
         print("   [DOS2DE-Physics] Applying transformations for {}".format(obj.name))
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        bpy.ops.object.transform_apply(location=location, rotation=rotation, scale=scale)
         obj.select = False
 
         #for childobj in obj.children:
@@ -550,7 +551,7 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         print("[DOS2DE-Physics] Applying transformations for objects.")
         for obj in export_objects:
             obj.hide_render = False
-            self.transform_apply(context, obj)
+            self.transform_apply(context, obj, location=True, rotation=True, scale=True)
 
         bpy.ops.object.select_all(action='DESELECT')
 
@@ -579,46 +580,54 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
 
         last_material_settings = []
         last_cursor_loc = bpy.context.scene.cursor_location.copy()
-
         for obj in export_objects:
-            if self.xflip == True and obj.type == "MESH":
-                print("[DOS2DE-Physics] X-flipping mesh.")
-                context.scene.objects.active = obj
-                obj.select = True
-                bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
-                bpy.context.scene.cursor_location = obj.location
-                if obj.scale[0] > 0:
-                    obj.scale[0] = -1
-                else:
-                    obj.scale[0] *= -1
-                bpy.ops.object.editmode_toggle()
-                bpy.ops.mesh.select_all(action='SELECT')
-                bpy.ops.mesh.flip_normals()
-                bpy.ops.object.editmode_toggle()
-                bpy.context.scene.cursor_location = last_cursor_loc
-                print("[DOS2DE-Physics] Last cursor loc: {} | Current cursor loc {}:".format(last_cursor_loc, bpy.context.scene.cursor_location))
-                bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
-                self.transform_apply(context, obj)
-                #print("[DOS2DE-Physics] Rotating object '{}' on the {} axis.".format(obj.name, self.use_rotation_axis))
-            rotated = False
             if self.use_rotation_axis_y == True:
                 obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_y_amount), 3, "Y")).to_euler()
                 rotated = True
                 if self.use_rotation_apply_each:
-                    self.transform_apply(context, obj)
+                    self.transform_apply(context, obj, rotation=True, location=True)
             if self.use_rotation_axis_z == True:
                 obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_z_amount), 3, "Z")).to_euler()
                 rotated = True
                 if self.use_rotation_apply_each:
-                    self.transform_apply(context, obj)
+                    self.transform_apply(context, obj, rotation=True, location=True)
             if self.use_rotation_axis_x == True:
                 obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_x_amount), 3, "X")).to_euler()
                 rotated = True
                 if self.use_rotation_apply_each:
-                    self.transform_apply(context, obj)
+                    self.transform_apply(context, obj, rotation=True, location=True)
 
-            self.transform_apply(context, obj)
-
+            self.transform_apply(context, obj, rotation=True, location=True)
+            if self.xflip == True and obj.type == "MESH":
+                print("[DOS2DE-Physics] X-flipping mesh.")
+                context.scene.objects.active = obj
+                obj.select = True
+                # bpy.context.scene.cursor_location = obj.location
+                # bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+                # if obj.scale[0] > 0:
+                #     obj.scale[0] = -1
+                # else:
+                #     obj.scale[0] *= -1
+                # bpy.ops.object.editmode_toggle()
+                # bpy.ops.mesh.select_all(action='SELECT')
+                # bpy.ops.mesh.flip_normals()
+                # bpy.ops.object.editmode_toggle()
+                # bpy.context.scene.cursor_location = last_cursor_loc
+                self.transform_apply(context, obj, scale=True)
+                obj.scale = (-1.0, 1.0, 1.0)
+                self.transform_apply(context, obj, scale=True)
+                bm = bmesh.new()
+                bm.from_mesh(obj.data)
+                bmesh.ops.reverse_faces(bm, faces=bm.faces)
+                bm.to_mesh(obj.data)
+                bm.clear()
+                obj.data.update()
+                print("[DOS2DE-Physics] Flipped and applied scale transformation for {} ".format(obj.name))
+                #rint("[DOS2DE-Physics] Last cursor loc: {} | Current cursor loc {}:".format(last_cursor_loc, bpy.context.scene.cursor_location))
+                #bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+                #print("[DOS2DE-Physics] Rotating object '{}' on the {} axis.".format(obj.name, self.use_rotation_axis))
+            rotated = False
+            #return {"FINISHED"} #Debugging flips
             if (obj.parent is None or obj.parent.type != "ARMATURE") and obj.type != "ARMATURE":
                 print("[DOS2DE-Physics] Creating armature for '{}'.".format(obj.name))
                 #bpy.ops.object.armature_add()
