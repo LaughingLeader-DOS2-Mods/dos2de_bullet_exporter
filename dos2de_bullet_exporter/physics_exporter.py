@@ -153,6 +153,32 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         default=0
     )
 
+    def update_preset(self, context):
+        if self.preset == "WEAPON":
+            self.xflip = False
+            self.use_rotation_x_amount = 90
+            self.use_rotation_axis_x = True
+            self.use_rotation_axis_y = False
+            self.use_rotation_axis_z = False
+        elif self.preset == "DEFAULT":
+            self.xflip = True
+            self.use_rotation_x_amount = -90
+            self.use_rotation_axis_x = True
+            self.use_rotation_axis_y = False
+            self.use_rotation_axis_z = False
+
+    preset = EnumProperty(
+        name="Preset",
+        description="Pre-configured settings for various weapon types",
+        items=(
+            ("NONE", "None", ""),
+            ("DEFAULT", "Default", ""),
+            ("WEAPON", "Weapon (Rigid)", "")
+        ),
+        default=("NONE"),
+        update=update_preset
+    )
+
     xflip = BoolProperty(
         name="X-Flip",
         description="X-flip the mesh before exporting",
@@ -236,6 +262,7 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
     def draw(self, context):
         layout = self.layout
 
+        layout.prop(self, "preset")
         layout.prop(self, "object_types")
         layout.label(text="Physics:", icon="PHYSICS")
         box = layout.box()
