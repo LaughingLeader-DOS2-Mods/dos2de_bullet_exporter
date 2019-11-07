@@ -90,10 +90,10 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
 
         if self.filepath != "":
             if self.auto_name == "LAYER":
-                if hasattr(bpy.data.scenes["Scene"], "namedlayers"):
+                if hasattr(context.scene, "namedlayers"):
                     for i in range(20):
-                        if (bpy.data.scenes["Scene"].layers[i]):
-                                layername = bpy.data.scenes["Scene"].namedlayers.layers[i].name
+                        if (context.scene.layers[i]):
+                                layername = context.scene.namedlayers.layers[i].name
                                 if layername is not None and layername != "":
                                     self.auto_filepath = bpy.path.ensure_ext("{}\\{}".format(self.directory, layername), self.filename_ext)
                                     self.update_path = True
@@ -300,7 +300,7 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         return update
 
     def invoke(self, context, event):
-        if self.auto_name == "LAYER" and hasattr(bpy.data.scenes["Scene"], "namedlayers") == False:
+        if self.auto_name == "LAYER" and hasattr(context.scene, "namedlayers") == False:
             #bpy.context.window_manager.popup_menu(error_missing_layer_names, title="Warning", icon='ERROR')
             self.auto_name = "DISABLED"
 
@@ -349,10 +349,10 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         obj_filepath = ""
 
         if self.auto_name == "LAYER":
-            if hasattr(bpy.data.scenes["Scene"], "namedlayers"):
+            if hasattr(context.scene, "namedlayers"):
                 for i in range(20):
                     if (obj.layers[i]):
-                            layername = bpy.data.scenes["Scene"].namedlayers.layers[i].name
+                            layername = context.scene.namedlayers.layers[i].name
                             if layername is not None and layername != "":
                                 obj_filepath = bpy.path.ensure_ext("{}\\{}".format(self.directory, layername), self.filename_ext)
                                 break
