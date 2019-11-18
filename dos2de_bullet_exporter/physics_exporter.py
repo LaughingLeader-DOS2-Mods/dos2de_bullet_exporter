@@ -491,7 +491,8 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
             context.scene.objects.active = active_object
         
         # Return to previous mode
-        if last_mode is not None and active_object is not None:
+        if (last_mode is not None and active_object is not None 
+                and active_object.hide == False and active_object.hide_select == False):
             if active_object.type != "ARMATURE" and last_mode == "POSE":
                 bpy.ops.object.mode_set(mode="OBJECT")
             else:
@@ -536,7 +537,6 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
             return {'CANCELLED'}
         
         for obj in exportable_objects:
-
             object_settings[obj.name] = {
                 "selected": obj.select,
                 "hide_render": obj.hide_render,
@@ -558,7 +558,7 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         if context.selected_objects is not None:
             export_objects.extend(context.selected_objects)
             print("[DOS2DE-Physics] Added context.selected_objects to export_objects ({}).".format(len(export_objects)))
-        else:
+        elif (context.scene.objects.active != None):
             print("[DOS2DE-Physics] Added context.scene.objects.active to export_objects.")
             export_objects.append(context.scene.objects.active)
 
@@ -577,6 +577,9 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
 
         print("[DOS2DE-Physics] Applying transformations for objects.")
         for obj in export_objects:
+            # if not self.can_export_object(context, obj):
+            #     bpy.data.objects.remove(obj.data, do_unlink=True)
+            #     export_objects.remove(obj)
             obj.hide_render = False
             self.transform_apply(context, obj, location=True, rotation=True, scale=True)
 
