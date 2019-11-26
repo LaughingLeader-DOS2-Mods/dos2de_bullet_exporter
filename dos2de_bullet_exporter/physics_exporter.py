@@ -154,12 +154,19 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
     )
 
     def update_preset(self, context):
-        if self.preset == "WEAPON":
+        if self.preset == "WEAPON_RIGID":
             self.xflip = False
             self.use_rotation_x_amount = 90
             self.use_rotation_axis_x = True
             self.use_rotation_axis_y = False
             self.use_rotation_axis_z = False
+        elif self.preset == "WEAPON_RIGGED":
+            self.xflip = False
+            self.use_rotation_x_amount = 90
+            self.use_rotation_z_amount = 180
+            self.use_rotation_axis_x = True
+            self.use_rotation_axis_y = False
+            self.use_rotation_axis_z = True
         elif self.preset == "DEFAULT":
             self.xflip = True
             self.use_rotation_x_amount = -90
@@ -173,7 +180,8 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         items=(
             ("NONE", "None", ""),
             ("DEFAULT", "Default", ""),
-            ("WEAPON", "Weapon (Rigid)", "")
+            ("WEAPON_RIGID", "Weapon (Rigid)", ""),
+            ("WEAPON_RIGGED", "Weapon (Rigged)", "")
         ),
         default=("NONE"),
         update=update_preset
@@ -513,6 +521,12 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         #    self.transform_apply(context, childobj)
         context.scene.objects.active = last_selected
 
+    def get_top_parent(self, obj):
+        if obj.parent is not None:
+            return self.get_top_parent(obj.parent)
+        else:
+            return obj
+
     def execute(self, context):
         if not self.filepath:
             raise Exception("[DOS2DE-Physics] Filepath not set.")
@@ -611,23 +625,26 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
         last_material_settings = []
         last_cursor_loc = bpy.context.scene.cursor_location.copy()
         for obj in export_objects:
+            #target = self.get_top_parent(obj)
+            target = obj
             if self.use_rotation_axis_y == True:
-                obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_y_amount), 3, "Y")).to_euler()
+                target.rotation_euler = (target.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_y_amount), 3, "Y")).to_euler()
                 rotated = True
                 if self.use_rotation_apply_each:
-                    self.transform_apply(context, obj, rotation=True, location=True)
+                    self.transform_apply(context, target, rotation=True, location=True)
             if self.use_rotation_axis_z == True:
-                obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_z_amount), 3, "Z")).to_euler()
+                target.rotation_euler = (target.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_z_amount), 3, "Z")).to_euler()
                 rotated = True
                 if self.use_rotation_apply_each:
-                    self.transform_apply(context, obj, rotation=True, location=True)
+                    self.transform_apply(context, target, rotation=True, location=True)
             if self.use_rotation_axis_x == True:
-                obj.rotation_euler = (obj.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_x_amount), 3, "X")).to_euler()
+                target.rotation_euler = (target.rotation_euler.to_matrix() * Matrix.Rotation(radians(self.use_rotation_x_amount), 3, "X")).to_euler()
                 rotated = True
                 if self.use_rotation_apply_each:
-                    self.transform_apply(context, obj, rotation=True, location=True)
+                    self.transform_apply(context, target, rotation=True, location=True)
 
-            self.transform_apply(context, obj, rotation=True, location=True)
+            self.transform_apply(context, target, rotation=True, location=True)
+            #return {"FINISHED"}
             if self.xflip == True and obj.type == "MESH":
                 print("[DOS2DE-Physics] X-flipping mesh.")
                 context.scene.objects.active = obj
@@ -656,7 +673,6 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
                 #rint("[DOS2DE-Physics] Last cursor loc: {} | Current cursor loc {}:".format(last_cursor_loc, bpy.context.scene.cursor_location))
                 #bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
                 #print("[DOS2DE-Physics] Rotating object '{}' on the {} axis.".format(obj.name, self.use_rotation_axis))
-            rotated = False
             #return {"FINISHED"} #Debugging flips
             if (obj.parent is None or obj.parent.type != "ARMATURE") and obj.type != "ARMATURE":
                 print("[DOS2DE-Physics] Creating armature for '{}'.".format(obj.name))
