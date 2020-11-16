@@ -450,7 +450,7 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
             bpy.ops.logic.controller_remove(controller=pass_ctrl.name, object=obj.name)
             bpy.ops.logic.actuator_remove(actuator=quit_act.name, object=obj.name)
             bpy.ops.logic.sensor_remove(sensor=trigger.name, object=obj.name)
-            print("[DOS2DE-Physics] Done.")
+            print("[DOS2DE-Physics] Done. Saved filed to '{}'.".format(export_path))
 
             if self.binconversion_enabled:
                 if self.binutil_path is not None and self.binutil_path != "" and os.path.isfile(self.binutil_path):
