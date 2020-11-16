@@ -601,7 +601,7 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
 
         delete_objects.extend(export_objects)
 
-        if addon_prefs.export_combine_visible and len(export_objects) > 1:
+        if self.export_combine_visible and len(export_objects) > 1:
             print("[DOS2DE-Physics] Joining objects.")
 
             mesh_copies = [x for x in export_objects if x.type == "MESH"]
