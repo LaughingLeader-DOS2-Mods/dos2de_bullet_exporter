@@ -389,11 +389,11 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
                     if (obj.layers[i]):
                             layername = context.scene.namedlayers.layers[i].name
                             if layername is not None and layername != "":
-                                obj_filepath = bpy.path.ensure_ext("{}\\{}".format(self.directory, layername), self.filename_ext)
+                                obj_filepath = bpy.path.ensure_ext(os.path.join(self.directory, layername), self.filename_ext)
                                 break
 
         if obj_filepath == "" or self.auto_name == "OBJECT":
-            obj_filepath = bpy.path.ensure_ext("{}\\{}".format(self.directory, obj.name), self.filename_ext)
+            obj_filepath = bpy.path.ensure_ext(os.path.join(self.directory, obj.name), self.filename_ext)
         elif obj_filepath == "":
             obj_filepath = bpy.path.ensure_ext(self.last_filepath, self.filename_ext)
 
@@ -458,7 +458,7 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
                         subprocess.run([self.binutil_path,'-i', export_path])
                         os.remove(export_path)
                     else:
-                        raise Warning("[DOS2DE-Physics] Bullet file not found. Try exporting to a folder not in your User directory.")
+                        raise Warning("[DOS2DE-Physics] Bullet file not found. Was it exported? If exporting to a User folder, this may cause it to fail.")
                 else:
                     raise Exception("[DOS2DE-Physics] Bin conversion program not found.")
     def finish(self, context, **args):
