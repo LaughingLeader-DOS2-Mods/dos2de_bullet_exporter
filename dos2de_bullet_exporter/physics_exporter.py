@@ -383,6 +383,9 @@ class LEADER_OT_physics_exporter(bpy.types.Operator, ExportHelper):
     def create_filepath(self, context, obj):
         obj_filepath = ""
 
+        if self.filepath != "":
+            return bpy.path.ensure_ext(os.path.splitext(self.filepath)[0], self.filename_ext)
+
         if self.auto_name == "LAYER":
             if hasattr(context.scene, "namedlayers"):
                 for i in range(20):
